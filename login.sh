@@ -10,6 +10,8 @@ check_dependency() {
             sudo apt update && sudo apt install -y curl
         elif [ -f /etc/redhat-release ]; then
             sudo yum install -y curl
+        elif [ -f /etc/opkg.conf ]; then
+            sudo opkg install curl
         else
             echo "Unsupported OS, please install curl manually."
             exit 1
@@ -23,6 +25,8 @@ check_dependency() {
             sudo apt update && sudo apt install -y jq
         elif [ -f /etc/redhat-release ]; then
             sudo yum install -y jq
+        elif [ -f /etc/opkg.conf ]; then
+            sudo opkg install jq
         else
             echo "Unsupported OS, please install jq manually."
             exit 1
@@ -39,12 +43,12 @@ config_file="./login_config.conf"
 # 如果配置文件不存在，提示用户输入账号和密码
 if [ ! -f "$config_file" ]; then
     echo "Configuration file not found. Please input your login details."
-    read -p "Enter your account (DDDDD): " account
-    read -sp "Enter your password (upass): " password
+    read -p "Enter your account: " account
+    read -sp "Enter your password: " password
     echo ""
     # 保存账号密码到配置文件
-    echo "DDDDD=$account" > "$config_file"
-    echo "upass=$password" >> "$config_file"
+    echo "account=$account" > "$config_file"
+    echo "password=$password" >> "$config_file"
     echo "Configuration file created successfully."
 fi
 
@@ -55,7 +59,7 @@ source "$config_file"
 internetCheck=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://connect.rom.miui.com/generate_204)
 
 if [ "$internetCheck" == "204" ]; then
-    logger "Connected to the internet. No need to login." && echo "Connected to the internet. No need to login."
+    logger "Already connected to the internet. No need to login." && echo "Already connected to the internet. No need to login."
     exit 0
 elif [ "$internetCheck" == "200" ]; then
     logger "Network available but not logged in. Attempting login..." && echo "Network available but not logged in. Attempting login..."
