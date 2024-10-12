@@ -9,17 +9,17 @@
 ## 使用方法
 1. 克隆本项目或下载 `login.sh`
 2. 确保脚本具有可执行权限，可以通过以下命令为脚本添加执行权限：
-  ```bash
+  ```Bash
   chmod +x loginNet.sh
   ```
 3. 运行脚本
-  ```bash
+  ```Bash
   ./login.sh
   ```
 - 如果首次运行，脚本会提示输入帐号和密码，输入后会生成一个名为 `login_config.conf` 的配置文件，用于后续的自动登录。
 ## 配置
 同目录下的配置文件 (`login_config.conf`) 保存了用户名和密码，其结构如下：
-  ```bash
+  ```Bash
   username=your_username
   password=your_password
   ```
