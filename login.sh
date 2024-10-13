@@ -1,5 +1,7 @@
 #!/bin/bash
 
+CONFIG_FILE="./login_config.conf"
+
 # ---检测是否安装了curl和jq---
 check_dependency() {
     # 检查是否安装了curl
@@ -37,23 +39,56 @@ check_dependency() {
 # ---调用依赖检测函数---
 check_dependency
 
-# ---检查配置文件并生成---
-config_file="./login_config.conf"
+# 读取或生成配置文件
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Configuration file not found. Creating a new one..."
+    
+    read -p "Enter account: " account
+    read -p "Enter password: " password
+    read -p "Select Network Type: Campus Network (1), China Telecom (2), China Mobile (3), China Unicom (4): " R3
 
-# 如果配置文件不存在，提示用户输入账号和密码
-if [ ! -f "$config_file" ]; then
-    echo "Configuration file not found. Please input your login details."
-    read -p "Enter your account: " account
-    read -sp "Enter your password: " password
-    echo ""
-    # 保存账号密码到配置文件
-    echo "account=$account" > "$config_file"
-    echo "password=$password" >> "$config_file"
-    echo "Configuration file created successfully."
+    #实际输入的值会比R3多1
+    let R3--
+
+    if [[ "$R3" -lt 0 || "$R3" -gt 3 ]]; then
+        echo "Invalid Network Type. Must be between 1 and 4."
+        exit 1
+    fi
+
+    echo "account=$account" > "$CONFIG_FILE"
+    echo "password=$password" >> "$CONFIG_FILE"
+    echo "R3=$R3" >> "$CONFIG_FILE"
+
+    echo "Configuration file created: $CONFIG_FILE"
+else
+    echo "Loading configuration from $CONFIG_FILE..."
+    source "$CONFIG_FILE"
+    
+    # 如果配置文件缺少参数，提示用户补全
+    if [ -z "$account" ] || [ -z "$password" ] || [ -z "$R3" ]; then
+        echo "Configuration file is incomplete. Overwriting it with new values..."
+        
+        read -p "Enter account: " account
+        read -p "Enter password: " password
+        read -p "Select Network Type: Campus Network (1), China Telecom (2), China Mobile (3), China Unicom (4): " R3
+
+        #实际输入的值会比R3多1
+        let R3--
+
+        if [[ "$R3" -lt 0 || "$R3" -gt 3 ]]; then
+            echo "Invalid Network Type. Must be between 1 and 4."
+            exit 1
+        fi
+
+        echo "account=$account" > "$CONFIG_FILE"
+        echo "password=$password" >> "$CONFIG_FILE"
+        echo "R3=$R3" >> "$CONFIG_FILE"
+
+        echo "Configuration updated: $CONFIG_FILE"
+    fi
 fi
-
 # 读取配置文件中的账号和密码
-source "$config_file"
+CONFIG_FILE="./login_config.conf"
 
 # ---检查网络连接状态---
 internetCheck=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://connect.rom.miui.com/generate_204)
@@ -73,27 +108,32 @@ else
     fi
 fi
 
-# ---检查状态并尝试登录---
-CheckStatusResponse=$(curl -s -G "http://172.16.2.2/drcom/chkstatus?callback=dr1003&jsVersion=4.1&v=630&lang=zh")
-CheckStatusResponse=${CheckStatusResponse#*(}
-CheckStatusResponse=${CheckStatusResponse%)*}
+# 生成随机数作为v值
+random_v=$(shuf -i 1000-10000 -n 1)
 
-if [ -z "$CheckStatusResponse" ]; then
-    logger "Error: Empty response. Please check your network connection." && echo "Error: Empty response. Please check your network connection."
+# ---检查状态并尝试登录---
+checkStatusResponse=$(curl -s -G "http://172.16.2.2/drcom/chkstatus?callback=dr1003&jsVersion=4.1&v=$random_v&lang=zh")
+checkStatusResponse=${checkStatusResponse#*(}
+checkStatusResponse=${checkStatusResponse%)*}
+
+if [ -z "$checkStatusResponse" ]; then
+    echo "Error: Empty response. Check network connection."
     exit 1
 else
-    if [ "$(echo "$CheckStatusResponse" | jq '.result')" == 1 ]; then
-        logger "User $(echo "$CheckStatusResponse" | jq '.AC') is already logged in." && echo "User $(echo "$CheckStatusResponse" | jq '.AC') is already logged in."
+    if [ "$(echo "$checkStatusResponse" | jq '.result')" == 1 ]; then
+        echo "User $(echo "$checkStatusResponse" | jq '.AC') is already logged in."
     else
-        logger "Not logged in, attempting login..." && echo "Not logged in, attempting login..."
-        loginResponse=$(curl -s -G "http://172.16.2.2/drcom/login?callback=dr1003&DDDDD=$DDDDD&upass=$upass&0MKKey=123456&R1=0&R2=&R3=1&R6=0&para=00&v6ip=&terminal_type=1&lang=zh-cn&jsVersion=4.1&v=10104&lang=zh")
+        echo "Not logged in. Attempting to log in..."
+        
+        # 发起登录请求
+        loginResponse=$(curl -s -G "http://172.16.2.2/drcom/login?callback=dr1003&DDDDD=$account&upass=$password&0MKKey=123456&R1=0&R2=&R3=$R3&R6=0&para=00&v6ip=&terminal_type=1&lang=zh-cn&jsVersion=4.1&v=$random_v&lang=zh")
         loginResponse=${loginResponse#*(}
         loginResponse=${loginResponse%)*}
 
         if [ "$(echo "$loginResponse" | jq '.result')" == 1 ]; then
-            logger "User $(echo "$loginResponse" | jq '.uid') logged in successfully." && echo "User $(echo "$loginResponse" | jq '.uid') logged in successfully."
+            echo "User $(echo "$loginResponse" | jq '.uid') has successfully logged in."
         else
-            logger "Login failed. Please check your username and password." && echo "Login failed. Please check your username and password."
+            echo "Login failed. Please check account and password."
         fi
     fi
 fi
