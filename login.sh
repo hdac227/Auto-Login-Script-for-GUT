@@ -13,6 +13,7 @@ check_dependency() {
         elif [ -f /etc/redhat-release ]; then
             sudo yum install -y curl
         elif [ -f /etc/opkg.conf ]; then
+            sudo opkg update
             sudo opkg install curl
         else
             echo "Unsupported OS, please install curl manually."
@@ -28,6 +29,7 @@ check_dependency() {
         elif [ -f /etc/redhat-release ]; then
             sudo yum install -y jq
         elif [ -f /etc/opkg.conf ]; then
+            sudo opkg update
             sudo opkg install jq
         else
             echo "Unsupported OS, please install jq manually."
@@ -109,7 +111,7 @@ else
 fi
 
 # 生成随机数作为v值
-random_v=$(shuf -i 1000-10000 -n 1)
+random_v=$((RANDOM % 9001 + 1000))
 
 # ---检查状态并尝试登录---
 checkStatusResponse=$(curl -s -G "http://172.16.2.2/drcom/chkstatus?callback=dr1003&jsVersion=4.1&v=$random_v&lang=zh")
