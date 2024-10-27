@@ -7,7 +7,6 @@ LOG_FILE="./login.log"
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
 }
-
 # ---检测是否安装了curl和jq---
 check_dependency() {
     if ! command -v curl &> /dev/null; then
@@ -77,21 +76,24 @@ generate_random_v() {
 
 # ---检查网络连接状态---
 check_network() {
-    internetCheck=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://connect.rom.miui.com/generate_204)
-    if [ "$internetCheck" == "204" ]; then
-        log "Already connected to the internet. No need to login."
-        exit 0
-    elif [ "$internetCheck" == "200" ]; then
-        log "Network available but not logged in. Attempting login..."
-    else
-        redirectCheck=$(curl -s -o /dev/null -w "%{redirect_url}" --max-time 5 http://connect.rom.miui.com/generate_204)
-        if [ -n "$redirectCheck" ]; then
-            log "Redirect detected, proceeding to login..."
-        else
-            log "No network connection or unable to access login page."
-            exit 1
-        fi
-    fi
+	local retries=0
+	while [ $retries -lt 10 ]; do 
+		internetCheck=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://connect.rom.miui.com/generate_204)
+		if [ "$internetCheck" == "204" ]; then
+			log "Already connected to the internet. No need to login."
+			exit 0
+		elif [ "$internetCheck" == "200" ]; then
+			log "Network available but not logged in. Attempting login..."
+			return 0
+		elif [ -n "$internetCheck" ]; then
+			log "Redirect detected, proceeding to login..."
+			return 0
+		else
+			log "No network connection or unable to access login page."
+			sleep 60
+            retries=$((retries + 1))
+		fi
+    done
 }
 
 # ---解绑mac并登出函数---
